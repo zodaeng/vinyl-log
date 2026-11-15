@@ -152,12 +152,12 @@ function sync() {
     S.queue.splice(0, n);
     S.tables = d.tables; TABLES.forEach(function (t) { if (!S.tables[t]) S.tables[t] = []; });
     S.queue.forEach(applyLocal);
-    S.last = Date.now(); UI.syncing = false; save();
+    S.last = Date.now(); UI.syncing = false; UI.firstSync = true; save();
     if (!UI.page) render(); else paintSync();
     if (S.queue.length) setTimeout(sync, 300);
     return true;
   }).catch(function (e) {
-    UI.syncing = false; UI.err = navigator.onLine === false ? '오프라인' : (e.message || '연결 실패'); paintSync();
+    UI.syncing = false; UI.err = navigator.onLine === false ? '오프라인' : (e.message || '연결 실패'); if (!UI.firstSync) { UI.firstSync = true; if (!UI.page) render(); } paintSync();
     return false;
   });
 }
@@ -297,12 +297,17 @@ function viewSetup() {
 }
 
 /* ---------- 홈 ---------- */
+var PICK = '오늘의 바이닐';
 function todayPick() {
   var L = T('LP'); if (!L.length) return null;
-  if (UI.pick && lp(UI.pick)) return lp(UI.pick);
-  var d = today(), n = 7; for (var i = 0; i < d.length; i++) n = (n * 31 + d.charCodeAt(i)) % 100003;
-  return L[n % L.length];
+  var v = str(setting(PICK, '')).split('|');
+  if (v[0] === today() && lp(v[1])) return lp(v[1]);
+  // 다른 기기가 오늘 이미 뽑았을 수 있으니, 첫 동기화가 끝날 때까지 기다립니다.
+  if (!UI.firstSync && S.cfg.url && navigator.onLine !== false) return null;
+  var nx; do { nx = L[Math.floor(Math.random() * L.length)]; } while (L.length > 1 && str(nx.id) === str(v[1] || ''));
+  setPick(nx.id); setTimeout(sync, 0); return nx;
 }
+function setPick(id) { put('설정', PICK, { '값': today() + '|' + id }); save(); }
 function viewHome() {
   var y = new Date().getFullYear(), st = stylus(), d = new Date();
   var recent = logsSorted().filter(function (r) { return str(r['작업']) === '청음'; }).slice(0, 5);
@@ -319,7 +324,7 @@ function viewHome() {
   if (warn) todo.push(['비고에 주의 표시가 있는 LP', warn + '장', 'lp']);
   if (st.left < st.cap * 0.2) todo.push(['바늘 교체 시기가 가까워요', Math.max(0, Math.round(st.left)) + '시간 남음', 'home']);
   var title = String(d.getFullYear()).slice(2) + '年 ' + (d.getMonth() + 1) + '月 ' + d.getDate() + '日,<br>오늘의 바이닐';
-  var pick = '';
+  var pick = '<div class="pickc">' + phTag('', 'big') + '</div>';
   if (pk) { var n = countOf(pk.id), last = lastOf(pk.id, '청음');
     pick = '<div class="pickc"><button class="open" data-act="lp-open" data-id="' + h(pk.id) + '" aria-label="' + h(pk['앨범명']) + ' 상세 보기">' + art(pk, pk.id, 'big') + '</button><div><b>' + h(pk['앨범명']) + '</b><span class="s">' + h(pk['아티스트']) + '</span></div>' + (owned.length > 1 ? '<button class="mini" data-act="shuffle">다른 바이닐 추천</button>' : '') + '</div>'; }
   return '<div class="top" style="align-items:flex-start"><h1 style="margin:0;font-size:26px">' + title + '</h1><button class="iconbtn" style="margin:0 -10px 0 0" data-act="settings" aria-label="설정">' + svg('gear') + '</button></div>' + pick +
@@ -501,7 +506,7 @@ document.addEventListener('click', function (e) {
   var act = b.getAttribute('data-act'), id = b.getAttribute('data-id') || '';
   if (act === 'tab') { UI.tab = id; window.scrollTo(0, 0); render(); }
   else if (act === 'close') closePage();
-  else if (act === 'shuffle') { var L = T('LP'), cur = todayPick(), nx; do { nx = L[Math.floor(Math.random() * L.length)]; } while (L.length > 1 && cur && nx.id === cur.id); UI.pick = nx.id; render(); }
+  else if (act === 'shuffle') { var L = T('LP'), cur = todayPick(), nx; do { nx = L[Math.floor(Math.random() * L.length)]; } while (L.length > 1 && cur && nx.id === cur.id); setPick(nx.id); render(); sync(); }
   else if (act === 'settings') openPage('settings');
   else if (act === 'lp-open') { F = {}; openPage('lp', id); document.getElementById('page').scrollTop = 0; }
   else if (act === 'lp-new') openPage('lpform', '');
