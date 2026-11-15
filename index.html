@@ -291,8 +291,8 @@ function render() {
 function viewSetup() {
   document.getElementById('view').innerHTML = '<div class="top"><span class="brand">VINYL LOG</span></div><h1>구글 시트와 연결하기</h1>' +
     '<p class="note">시트의 Apps Script를 웹 앱으로 배포하면 나오는 주소와, 스크립트 맨 위에 적힌 열쇠를 입력해 주세요. 한 번만 하면 됩니다.</p>' +
-    '<form class="form" data-form="setup"><label>웹 앱 주소<input type="url" name="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" required></label>' +
-    '<label>열쇠<input type="text" name="key" autocomplete="off" autocapitalize="off" required></label>' +
+    '<form class="form" data-form="setup"><label>웹 앱 주소 또는 연결 코드<input type="text" name="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" autocapitalize="off" required></label>' +
+    '<label>열쇠 (연결 코드를 넣었다면 비워 두세요)<input type="text" name="key" autocomplete="off" autocapitalize="off"></label>' +
     '<div id="setup-msg"></div><button class="cta" type="submit">연결</button></form>';
 }
 
@@ -351,7 +351,7 @@ function pageLP(id) {
   var sides = sidesOf(id), n = countOf(id), total = sides.reduce(function (a, s) { return a + num(s['시간']); }, 0);
   var hist = logsSorted().filter(function (x) { return str(x.LP) === str(id); });
   var sc = {}; hist.forEach(function (x) { if (str(x['작업']) === '청음') logSides(x).forEach(function (s) { sc[s['면']] = (sc[s['면']] || 0) + 1; }); });
-  var kv = [['색상', r['색상']], ['포맷', [r['포맷'], r['장수'] ? r['장수'] + '장' : '', r['회전수'] ? r['회전수'] + '회전' : ''].filter(Boolean).join(', ')], ['발매 / 프레싱', [r['발매연도'], r['프레싱 연도']].filter(function (v) { return str(v) !== ''; }).join(' / ')], ['레이블', r['레이블']], ['카탈로그번호', r['카탈로그번호']], ['오비', r['오비']], ['신품', r['신품']], ['구매처', r['구매처']], ['도착일', str(r['도착일']) ? fmtFull(r['도착일']) : ''], ['정가', str(r['정가']) !== '' ? num(r['정가']).toLocaleString('ko-KR') + ' (현지 통화)' : ''], ['구매가', str(r['구매가']) !== '' ? (num(r['구매가']) === 0 ? '선물 (0원)' : won(num(r['구매가']))) : ''], ['마지막 청음', lastOf(id, '청음') ? fmtFull(lastOf(id, '청음')) : ''], ['세척일', lastOf(id, '세척') ? fmtFull(lastOf(id, '세척')) : ''], ['슬리브 교체일', lastOf(id, '슬리브 교체') ? fmtFull(lastOf(id, '슬리브 교체')) : ''], ['비고', r['비고']]];
+  var kv = [['색상', r['색상']], ['포맷', [r['포맷'], r['장수'] ? r['장수'] + '장' : '', r['회전수'] ? r['회전수'] + ' RPM' : ''].filter(Boolean).join(', ')], ['발매 / 프레싱', [r['발매연도'], r['프레싱 연도']].filter(function (v) { return str(v) !== ''; }).join(' / ')], ['레이블', r['레이블']], ['카탈로그번호', r['카탈로그번호']], ['오비', r['오비']], ['신품', r['신품']], ['구매처', r['구매처']], ['도착일', str(r['도착일']) ? fmtFull(r['도착일']) : ''], ['정가', str(r['정가']) !== '' ? str(r['통화']) + num(r['정가']).toLocaleString('ko-KR') : ''], ['구매가', str(r['구매가']) !== '' ? (num(r['구매가']) === 0 ? '선물 (0원)' : won(num(r['구매가']))) : ''], ['마지막 청음', lastOf(id, '청음') ? fmtFull(lastOf(id, '청음')) : ''], ['세척일', lastOf(id, '세척') ? fmtFull(lastOf(id, '세척')) : ''], ['슬리브 교체일', lastOf(id, '슬리브 교체') ? fmtFull(lastOf(id, '슬리브 교체')) : ''], ['비고', r['비고']]];
   var miss = blanks(r);
   return '<div class="bar"><button class="back" data-act="close">닫기</button><button class="back" data-act="lp-edit" data-id="' + h(id) + '">수정</button></div>' +
     art(r, str(id), 'big') + coverBtn('LP', id, str(r['커버']) !== '') + '<div><span class="date">' + h(id) + '</span><h1 style="font-size:24px">' + h(r['앨범명']) + '</h1><div class="note" style="margin-top:4px">' + h(r['아티스트']) + '</div></div>' +
@@ -364,8 +364,8 @@ function pageLP(id) {
 }
 
 /* ---------- 입력 폼 ---------- */
-var LPF = [['아티스트', 'text'], ['앨범명', 'text'], ['발매연도', 'num'], ['프레싱 연도', 'num'], ['레이블', 'text'], ['카탈로그번호', 'text'], ['포맷', 'sel', ['12"', '10"', '7"']], ['장수', 'num'], ['회전수', 'sel', ['33', '45']], ['색상', 'text'], ['오비', 'sel', ['O', 'X']], ['신품', 'sel', ['O', 'X']], ['구매처', 'text'], ['도착일', 'date'], ['정가', 'num'], ['구매가', 'num'], ['비고', 'area']];
-var HALF = { '발매연도': 1, '프레싱 연도': 1, '포맷': 1, '장수': 1, '회전수': 1, '색상': 1, '오비': 1, '신품': 1, '정가': 1, '구매가': 1 };
+var LPF = [['아티스트', 'text'], ['앨범명', 'text'], ['발매연도', 'num'], ['프레싱 연도', 'num'], ['레이블', 'text'], ['카탈로그번호', 'text'], ['포맷', 'sel', ['12"', '10"', '7"']], ['장수', 'num'], ['회전수', 'sel', ['33', '45']], ['색상', 'text'], ['오비', 'sel', ['O', 'X']], ['신품', 'sel', ['O', 'X']], ['구매처', 'text'], ['도착일', 'date'], ['정가', 'num'], ['통화', 'sel', ['¥', '$', '₩', '£', '€', 'HK$'], '정가 통화'], ['구매가', 'num'], ['비고', 'area']];
+var HALF = { '발매연도': 1, '프레싱 연도': 1, '포맷': 1, '장수': 1, '회전수': 1, '색상': 1, '오비': 1, '신품': 1, '정가': 1, '통화': 1, '구매가': 1 };
 function field(f, v) {
   var name = f[0], kind = f[1], val = h(str(v)), lab = f[3] || name, inner;
   if (kind === 'sel') inner = '<select name="' + h(name) + '"><option value=""></option>' + f[2].map(function (o) { return '<option' + (str(v) === o ? ' selected' : '') + '>' + h(o) + '</option>'; }).join('') + '</select>';
@@ -474,6 +474,7 @@ function pageSettings() {
   return '<div class="bar"><button class="back" data-act="close">닫기</button><b>설정</b><span style="width:40px"></span></div>' +
     '<h2>동기화</h2><div class="todo"><span class="sync" data-sync></span><span class="note">' + (S.last ? new Date(S.last).toLocaleString('ko-KR') : '아직 없음') + '</span></div>' +
     '<button class="cta ghost" data-act="sync-now">지금 동기화</button>' +
+    '<h2>연결 코드</h2><p class="note">연결이 풀렸을 때 첫 화면의 주소 칸에 이 코드를 붙여 넣으면 한 번에 다시 연결됩니다. 메모 앱에 보관해 두세요. 남에게는 보여 주지 마세요.</p><input type="text" id="code" readonly value="' + h(S.cfg.url + ' ' + S.cfg.key) + '"><button class="cta ghost" data-act="copy-code">연결 코드 복사</button>' +
     '<h2>바늘</h2><div class="stats"><div class="stat"><b>' + (Math.round(st.used * 10) / 10) + 'h</b><span>교체 후 사용</span></div><div class="stat"><b>' + Math.round(st.left) + 'h</b><span>남은 수명</span></div><div class="stat"><b>' + st.cap + 'h</b><span>권장 사용 시간</span></div></div>' +
     '<form class="form" data-form="cap"><label>권장 사용 시간 (h)<input type="text" inputmode="decimal" name="cap" value="' + h(st.cap) + '"></label><button class="cta ghost" type="submit">권장 시간 저장</button></form>' +
     '<h2>장비 기록</h2><div>' + (eq.map(function (r) { return '<div class="row"><div class="t"><b>' + h(r['장비']) + ' ' + h(r['작업']) + '</b><span>' + fmtFull(r['날짜']) + (str(r['비고']) ? ' · ' + h(r['비고']) : '') + '</span></div><button class="chip" style="border:0;min-height:36px" data-act="eq-del" data-id="' + h(r.id) + '">삭제</button></div>'; }).join('') || '<div class="empty">장비 기록이 없습니다</div>') + '</div>' +
@@ -526,6 +527,7 @@ document.addEventListener('click', function (e) {
   }
   else if (act === 'eq-del') { if (confirmTap(b, 'eq' + id)) { del('장비', id); save(); sync(); repage(); } }
   else if (act === 'sync-now') { sync().then(repage); }
+  else if (act === 'copy-code') { var ce = document.getElementById('code'); ce.focus(); ce.select(); ce.setSelectionRange(0, 99999); var done = function () { b.textContent = '복사했습니다'; }; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ce.value).then(done, function () { try { document.execCommand('copy'); done(); } catch (e3) {} }); else { try { document.execCommand('copy'); done(); } catch (e4) {} } }
   else if (act === 'backup') { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(S.tables, null, 1)], { type: 'application/json' })); a.download = 'vinyl-log-' + today() + '.json'; a.click(); }
   else if (act === 'unlink') { if (confirmTap(b, 'unlink')) { S.cfg = { url: '', key: '' }; save(); UI.page = null; document.getElementById('page').classList.remove('open'); render(); } }
 });
@@ -539,9 +541,9 @@ document.addEventListener('change', function (e) {
 document.addEventListener('submit', function (e) {
   var f = e.target, kind = f.getAttribute('data-form'); if (!kind) return; e.preventDefault();
   if (kind === 'setup') {
-    var msg = document.getElementById('setup-msg'); S.cfg = { url: f.elements.url.value.trim(), key: f.elements.key.value.trim() };
+    var msg = document.getElementById('setup-msg'); var raw = f.elements.url.value.trim().split(/\s+/); S.cfg = { url: raw[0] || '', key: f.elements.key.value.trim() || raw[1] || '' };
     msg.innerHTML = '<p class="note">연결하는 중입니다…</p>';
-    sync().then(function (ok) { if (ok) { save(); render(); } else { var er = UI.err; S.cfg = { url: '', key: '' }; msg.innerHTML = '<div class="msg">연결하지 못했습니다. ' + h(er) + '. 주소와 열쇠, 배포 설정의 액세스 권한을 확인해 주세요.</div>'; } });
+    sync().then(function (ok) { if (ok) { save(); render(); try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e2) {} } else { var er = UI.err; S.cfg = { url: '', key: '' }; msg.innerHTML = '<div class="msg">연결하지 못했습니다. ' + h(er) + '. 주소와 열쇠, 배포 설정의 액세스 권한을 확인해 주세요.</div>'; } });
   } else if (kind === 'lp') {
     var old = f.getAttribute('data-id'), id = old || f.elements.id.value.trim(); if (!id) return;
     if (!old && lp(id)) { f.elements.id.focus(); return; }
@@ -565,6 +567,7 @@ document.addEventListener('submit', function (e) {
   }
 });
 
+try { if (S.cfg.url && navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 render();
 idbOpen().then(idbAll).then(function () { if (!UI.page) render(); sync(); });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
