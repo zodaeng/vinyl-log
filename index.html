@@ -78,6 +78,21 @@ h2{margin:0;font-size:12px;font-weight:400;color:var(--sub);letter-spacing:.02em
 .t b.fl .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .flag{display:block;flex:none;width:4px;height:4px;border-radius:50%;background:var(--signal)}
 .kv dd.warn{color:var(--warn)}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:400;color:var(--sub)}
+.fld .chips{gap:6px}
+.fld .pick{min-height:36px;padding:0 12px;font-size:14px}
+.combo{position:relative}
+.combo:after{content:"";position:absolute;right:14px;top:21px;width:7px;height:7px;border-right:1.5px solid var(--sub);border-bottom:1.5px solid var(--sub);transform:rotate(45deg);pointer-events:none}
+.combo input{padding-right:36px}
+.dd{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:232px;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.dd .opt{display:block;width:100%;min-height:44px;padding:0 12px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;font-size:15px;color:var(--ink)}
+.dd .opt:last-child{border-bottom:0}
+.dd .opt.on{font-weight:500}
+.dd .opt:active{background:var(--key)}
+.dbox{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--sub);padding-bottom:14px;border-bottom:1px solid var(--line)}
+.drow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.drow .pick{min-height:46px}
+#dg-msg:empty{display:none}
 .acts{display:flex;flex-direction:column;gap:8px}
 .acts3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .acts3 .pick{padding:0 6px;white-space:nowrap}
@@ -474,28 +489,109 @@ function pageLP(id) {
 }
 
 /* ---------- 입력 폼 ---------- */
-var LPF = [['아티스트', 'text'], ['앨범명', 'text'], ['발매연도', 'num'], ['프레싱 연도', 'num'], ['레이블', 'text'], ['카탈로그번호', 'text'], ['포맷', 'sel', ['12"', '10"', '7"']], ['장수', 'num'], ['회전수', 'sel', ['33', '45']], ['색상', 'text'], ['오비', 'sel', ['O', 'X']], ['신품', 'sel', ['O', 'X']], ['구매처', 'text'], ['도착일', 'date'], ['정가', 'num'], ['통화', 'sel', ['¥', '$', '₩', '£', '€', 'HK$'], '정가 통화'], ['구매가', 'num'], ['비고', 'area']];
-var HALF = { '발매연도': 1, '프레싱 연도': 1, '포맷': 1, '장수': 1, '회전수': 1, '색상': 1, '오비': 1, '신품': 1, '정가': 1, '통화': 1, '구매가': 1 };
-function field(f, v) {
-  var name = f[0], kind = f[1], val = h(str(v)), lab = f[3] || name, inner;
-  if (kind === 'sel') inner = '<select name="' + h(name) + '"><option value=""></option>' + f[2].map(function (o) { return '<option' + (str(v) === o ? ' selected' : '') + '>' + h(o) + '</option>'; }).join('') + '</select>';
-  else if (kind === 'area') inner = '<textarea name="' + h(name) + '">' + val + '</textarea>';
+// 입력 칸 종류: text, num, date, area, chips(정해진 보기), chipsn(숫자 보기), combo(누르면 지금까지 쓴 값이 펼쳐지고, 없으면 그대로 입력)
+var LPF = [['아티스트', 'combo'], ['앨범명', 'text'], ['포맷', 'chips', ['12"', '10"', '7"']], ['장수', 'chipsn', ['1', '2', '3', '4']], ['회전수', 'chipsn', ['33', '45']], ['색상', 'combo'],
+  ['발매연도', 'num'], ['프레싱 연도', 'num'], ['레이블', 'combo'], ['카탈로그번호', 'text'], ['오비', 'chips', ['O', 'X']], ['신품', 'chips', ['O', 'X']], ['구매처', 'combo'], ['도착일', 'date'],
+  ['정가', 'num'], ['구매가', 'num', null, '구매가 (원)'], ['통화', 'chips', ['¥', '$', '₩', '£', '€', 'HK$'], '정가 통화'], ['비고', 'area']];
+var HALF = { '발매연도': 1, '프레싱 연도': 1, '오비': 1, '신품': 1, '정가': 1, '구매가': 1 };
+// 지금까지 소장 목록과 예약·위시에 쓴 값을 많이 쓴 순서로
+function usedValues(name) {
+  var cnt = {};
+  T('LP').concat(T('위시')).forEach(function (r) { var v = str(r[name]).trim(); if (v) cnt[v] = (cnt[v] || 0) + 1; });
+  return Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a] || a.localeCompare(b); });
+}
+function chipBtn(name, v, on) { return '<button type="button" class="pick' + (on ? ' on' : '') + '" data-act="fpick" data-f="' + h(name) + '" data-v="' + h(v) + '">' + h(v) + '</button>'; }
+function comboList(name, q, cur) {
+  q = str(q).trim().toLowerCase();
+  var all = usedValues(name), list = q ? all.filter(function (v) { return v.toLowerCase().indexOf(q) >= 0; }) : all;
+  if (!list.length) return '';
+  return list.map(function (v) { return '<button type="button" role="option" class="opt' + (v === cur ? ' on' : '') + '" data-act="copt" data-v="' + h(v) + '">' + h(v) + '</button>'; }).join('');
+}
+function comboOpen(inp) {
+  var dd = inp.parentNode.querySelector('.dd'); if (!dd) return;
+  var html = comboList(inp.getAttribute('data-combo'), inp.value === inp.getAttribute('data-shown') ? '' : inp.value, inp.value);
+  dd.innerHTML = html; dd.hidden = !html;
+}
+function field(f, v, def) {
+  var name = f[0], kind = f[1], sv = str(v), val = h(sv), lab = f[3] || name, inner;
+  if (kind === 'chips' || kind === 'chipsn') {
+    inner = '<input type="hidden" name="' + h(name) + '" value="' + val + '"' + (def ? ' data-def="' + h(def) + '"' : '') + '><div class="chips">' + f[2].map(function (o) { return chipBtn(name, o, sv === o); }).join('') + '</div>';
+  } else if (kind === 'combo') {
+    inner = '<div class="combo"><input type="text" name="' + h(name) + '" value="' + val + '" autocomplete="off" autocapitalize="off" data-combo="' + h(name) + '"><div class="dd" role="listbox" hidden></div></div>';
+  } else if (kind === 'area') inner = '<textarea name="' + h(name) + '">' + val + '</textarea>';
   else if (kind === 'num') inner = '<input type="text" inputmode="decimal" name="' + h(name) + '" value="' + val + '">';
   else if (kind === 'date') inner = '<input type="date" name="' + h(name) + '" value="' + val + '">';
   else inner = '<input type="text" name="' + h(name) + '" value="' + val + '" autocomplete="off">';
-  return '<label' + (HALF[name] ? '' : ' style="grid-column:1/-1"') + '>' + h(lab) + inner + '</label>';
+  var tag = (kind === 'chips' || kind === 'chipsn' || kind === 'combo') ? 'div' : 'label';
+  return '<' + tag + ' class="fld" data-g="' + h(name) + '"' + (HALF[name] ? '' : ' style="grid-column:1/-1"') + '><span class="fl-l">' + h(lab) + '</span>' + inner + '</' + tag + '>';
 }
-function fields(list, row) { return '<div class="grid2">' + list.map(function (f) { return field(f, row[f[0]]); }).join('') + '</div>'; }
+function fields(list, row, defs) { defs = defs || {}; return '<div class="grid2">' + list.map(function (f) { var v = row[f[0]]; if ((v === undefined || str(v) === '') && defs[f[0]] !== undefined) v = defs[f[0]]; return field(f, v, defs[f[0]]); }).join('') + '</div>'; }
 function readForm(form, list) {
   var o = {};
-  list.forEach(function (f) { var el = form.elements[f[0]]; if (!el) return; var v = el.value.trim(); o[f[0]] = (f[1] === 'num' && v !== '' && !isNaN(parseFloat(v.replace(/,/g, '')))) ? parseFloat(v.replace(/,/g, '')) : v; });
+  list.forEach(function (f) { var el = form.elements[f[0]]; if (!el) return; var v = el.value.trim(); o[f[0]] = ((f[1] === 'num' || f[1] === 'chipsn') && v !== '' && !isNaN(parseFloat(v.replace(/,/g, '')))) ? parseFloat(v.replace(/,/g, '')) : v; });
   return o;
+}
+// 새로 넣을 때 미리 골라 두는 값 (가장 흔한 값)
+function newDefaults(isWish) {
+  var cur = usedValues('통화')[0] || '';
+  var d = { '포맷': '12"', '장수': '1', '회전수': '33' }; if (cur) d['통화'] = cur;
+  if (!isWish) d['도착일'] = today();
+  return d;
+}
+function setField(form, name, v) {
+  var el = form.elements[name]; if (!el) return;
+  el.value = v;
+  var g = form.querySelector('[data-g="' + name + '"]'); if (!g) return;
+  var hit = false;
+  g.querySelectorAll('[data-act=fpick]').forEach(function (b) { var on = b.getAttribute('data-v') === str(v); b.classList.toggle('on', on); if (on) hit = true; });
+}
+function discogsBox() {
+  return '<div class="dbox"><span class="fl-l">Discogs 링크로 채우기</span><div class="drow"><input type="url" id="dg-url" placeholder="discogs.com/release/… 붙여넣기" autocomplete="off" autocapitalize="off"><button type="button" class="pick" data-act="discogs">채우기</button></div><div id="dg-msg" class="note"></div></div>';
+}
+function dgName(s) { return str(s).replace(/\s*\(\d+\)$/, '').trim(); }
+function dgFetch(path) { return fetch('https://api.discogs.com/' + path).then(function (r) { if (!r.ok) throw new Error(r.status === 404 ? '찾을 수 없는 링크입니다' : 'Discogs 응답 오류 ' + r.status); return r.json(); }); }
+function discogsFill(form, sidesName) {
+  var msg = document.getElementById('dg-msg'), url = str(document.getElementById('dg-url').value).trim();
+  var m = /(release|master)s?\/(\d+)/i.exec(url) || (/^(\d+)$/.exec(url) ? [0, 'release', url] : null);
+  if (!m) { msg.textContent = 'Discogs의 release나 master 링크를 붙여 넣어 주세요.'; return; }
+  msg.textContent = 'Discogs에서 불러오는 중…';
+  var rel;
+  // master 링크면 그중 바이닐 판을 고른다. 정확한 판(색, 프레싱)은 release 링크가 가장 정확하다.
+  var start = m[1].toLowerCase() === 'master'
+    ? dgFetch('masters/' + m[2] + '/versions?format=Vinyl&per_page=5').then(function (v) { var x = (v.versions || [])[0]; if (!x) throw new Error(); return dgFetch('releases/' + x.id); })
+        .catch(function () { return dgFetch('masters/' + m[2]).then(function (ms) { return dgFetch('releases/' + ms.main_release); }); })
+    : dgFetch('releases/' + m[2]);
+  start.then(function (r) { rel = r; return r.master_id ? dgFetch('masters/' + r.master_id).catch(function () { return null; }) : null; }).then(function (ms) {
+    var r = rel, vf = (r.formats || []).filter(function (x) { return x.name === 'Vinyl'; }), desc = [].concat.apply([], vf.map(function (x) { return x.descriptions || []; }));
+    var size = desc.indexOf('12"') >= 0 ? '12"' : desc.indexOf('10"') >= 0 ? '10"' : desc.indexOf('7"') >= 0 ? '7"' : '';
+    var rpm = desc.filter(function (x) { return /RPM/.test(x); }).map(function (x) { return /45/.test(x) ? '45' : /33/.test(x) ? '33' : ''; })[0] || '';
+    var qty = vf.reduce(function (a, x) { return a + (parseInt(x.qty, 10) || 0); }, 0);
+    // 포맷 설명 중 색이 아닌 말(게이트폴드, 180g 등)은 뺀다
+    var notColor = /gatefold|\d|gram|\bg\b|limited|numbered|etched|obi|insert|poster|booklet|reissue|remaster|stereo|mono|speed|pressing|edition|sleeve|jacket|lyric|sticker|hype|signed|repress|deluxe|anniversary/i;
+    var color = vf.map(function (x) { return str(x.text).split(',').map(function (t) { return t.trim(); }).filter(function (t) { return t && !notColor.test(t); }).join(', '); }).filter(Boolean)[0] || (vf.length ? 'Black' : '');
+    // 이미 쓰는 표기가 있으면 그 표기를 따른다 (예: Radwimps 대신 RADWIMPS)
+    var same = function (k, v) { var hit = usedValues(k).filter(function (u) { return u.toLowerCase() === str(v).toLowerCase(); })[0]; return hit || v; };
+    var artist = (r.artists || []).map(function (a, i, arr) { return dgName(a.anv || a.name) + (i < arr.length - 1 ? (a.join && a.join !== ',' ? ' ' + a.join + ' ' : ', ') : ''); }).join('');
+    var lab = (r.labels || [])[0] || {};
+    var sides = {}; (r.tracklist || []).forEach(function (t) { var pm = /^(?:\d+-)?([A-Z])/.exec(str(t.position)); var dm = /^(\d+):(\d{2})$/.exec(str(t.duration)); if (pm && dm) sides[pm[1]] = (sides[pm[1]] || 0) + (+dm[1]) + (+dm[2]) / 60; });
+    var sideTxt = Object.keys(sides).sort().map(function (k) { return k + ' ' + (Math.round(sides[k] * 10) / 10); }).join(' / ');
+    var vals = { '아티스트': same('아티스트', artist), '앨범명': r.title, '발매연도': ms && ms.year ? ms.year : r.year, '프레싱 연도': r.year, '레이블': same('레이블', dgName(lab.name)), '카탈로그번호': lab.catno && lab.catno !== 'none' ? lab.catno : '', '포맷': size, '장수': qty ? String(qty) : '', '회전수': rpm, '색상': same('색상', color) };
+    vals[sidesName] = sideTxt;
+    var filled = 0, kept = 0;
+    Object.keys(vals).forEach(function (k) {
+      var v = str(vals[k]); if (!v || v === '0') return; var el = form.elements[k]; if (!el) return;
+      var cur = str(el.value).trim();
+      if (cur && cur !== str(el.getAttribute('data-def'))) { if (cur !== v) kept++; return; }
+      setField(form, k, v); filled++;
+    });
+    msg.textContent = filled + '개 칸을 채웠습니다.' + (kept ? ' 이미 적혀 있던 ' + kept + '개 칸은 그대로 두었습니다.' : '') + (color === 'Black' && !vf.some(function (x) { return x.text; }) ? ' 색상은 Discogs에 따로 적혀 있지 않아 Black으로 넣었습니다.' : '');
+  }).catch(function (e) { msg.textContent = '불러오지 못했습니다. ' + (e.message || '') ; });
 }
 function pageLPForm(id) {
   var r = id ? lp(id) : {}, nid = id || nextId();
   return '<div class="bar"><button class="back" data-act="' + (id ? 'lp-open' : 'close') + '" data-id="' + h(id || '') + '">취소</button><b>' + (id ? 'LP 수정' : '새 LP') + '</b><span style="width:40px"></span></div>' +
-    '<form class="form" data-form="lp" data-id="' + h(id || '') + '"><label>번호<input type="text" name="id" value="' + h(nid) + '"' + (id ? ' readonly' : '') + '></label>' +
-    fields(LPF, r || {}) + '<label>면별 시간 (분)<input type="text" name="sides" placeholder="A 17.2 / B 22.9" value="' + h(id ? sidesText(id) : '') + '" autocomplete="off"></label>' +
+    '<form class="form" data-form="lp" data-id="' + h(id || '') + '">' + discogsBox() + '<label>번호<input type="text" name="id" value="' + h(nid) + '"' + (id ? ' readonly' : '') + '></label>' +
+    fields(LPF, r || {}, id ? {} : newDefaults(false)) + '<label>면별 시간 (분)<input type="text" name="sides" placeholder="A 17.2 / B 22.9" value="' + h(id ? sidesText(id) : '') + '" autocomplete="off"></label>' +
     '<p class="note">면별 시간은 "A 17.2 / B 22.9"처럼 면 이름과 분을 적어 주세요.</p>' +
     '<button class="cta" type="submit">저장</button>' + (id ? '<button class="cta danger" type="button" data-act="lp-del" data-id="' + h(id) + '">이 LP 삭제</button>' : '') + '</form>';
 }
@@ -529,7 +625,7 @@ function viewLog() {
 }
 
 /* ---------- 예약과 위시 ---------- */
-var WF = [['상태', 'sel', ['예약', '위시']]].concat(LPF.map(function (f) { return f[0] === '도착일' ? ['도착 예정일', 'date'] : f; })).concat([['면별 시간', 'text', null, '면별 시간 (분)']]);
+var WF = [['상태', 'chips', ['예약', '위시']]].concat(LPF.map(function (f) { return f[0] === '도착일' ? ['도착 예정일', 'date'] : f; })).concat([['면별 시간', 'text', null, '면별 시간 (분)']]);
 function viewWish() {
   var rows = T('위시').filter(function (r) { return str(r['상태']) === UI.wish; });
   return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 48px;gap:8px;align-items:center"><div class="seg">' + ['예약', '위시'].map(function (k) { return '<button class="' + (UI.wish === k ? 'on' : '') + '" data-act="wish-seg" data-id="' + k + '">' + k + ' ' + T('위시').filter(function (r) { return str(r['상태']) === k; }).length + '</button>'; }).join('') + '</div><button class="rkey" data-act="wish-new" aria-label="예약이나 위시 추가">' + svg('plus') + '</button></div>' +
@@ -542,7 +638,7 @@ function pageWishForm(id) {
   var r = id ? T('위시').find(function (x) { return str(x.id) === str(id); }) : { '상태': UI.wish };
   return '<div class="bar"><button class="back" data-act="close">취소</button><b>' + (id ? '예약·위시 수정' : '새 예약·위시') + '</b><span style="width:40px"></span></div>' +
     (id ? '<button class="cta" data-act="wish-arrive" data-id="' + h(id) + '">도착했어요, ' + nextId() + '로 소장 목록에 넣기</button>' + (str(r['커버']) !== '' ? art(r, id, 'big') : '') + coverBtn('위시', id, str(r['커버']) !== '') : '') +
-    '<form class="form" data-form="wish" data-id="' + h(id || '') + '">' + fields(WF, r || {}) +
+    '<form class="form" data-form="wish" data-id="' + h(id || '') + '">' + discogsBox() + fields(WF, r || {}, id ? {} : newDefaults(true)) +
     '<button class="cta' + (id ? ' ghost' : '') + '" type="submit">저장</button>' + (id ? '<button class="cta danger" type="button" data-act="wish-del" data-id="' + h(id) + '">삭제</button>' : '') + '</form>';
 }
 
@@ -611,6 +707,9 @@ document.addEventListener('click', function (e) {
   var act = b.getAttribute('data-act'), id = b.getAttribute('data-id') || '';
   if (act === 'tab') { UI.tab = id; window.scrollTo(0, 0); render(); }
   else if (act === 'close') closePage();
+  else if (act === 'fpick') { var fm = b.closest('form'), fname = b.getAttribute('data-f'), fv = b.getAttribute('data-v'), fe = fm.elements[fname]; setField(fm, fname, fe && fe.value === fv && fe.type === 'hidden' ? '' : fv); }
+  else if (act === 'copt') { var ci = b.closest('.combo').querySelector('input'); ci.value = b.getAttribute('data-v'); b.parentNode.hidden = true; ci.blur(); }
+  else if (act === 'discogs') { var fm3 = document.querySelector('#page form'); discogsFill(fm3, fm3.getAttribute('data-form') === 'wish' ? '면별 시간' : 'sides'); }
   else if (act === 'shuffle') {
     var L = T('LP'), cur = todayPick(), nx; do { nx = L[Math.floor(Math.random() * L.length)]; } while (L.length > 1 && cur && nx.id === cur.id);
     var go = function () { setPick(nx.id); UI.dir = 'next'; render(); sync(); };
@@ -647,7 +746,18 @@ document.addEventListener('click', function (e) {
   else if (act === 'backup') { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(S.tables, null, 1)], { type: 'application/json' })); a.download = 'vinyl-log-' + today() + '.json'; a.click(); }
   else if (act === 'unlink') { if (confirmTap(b, 'unlink')) { S.cfg = { url: '', key: '' }; save(); UI.page = null; document.getElementById('page').classList.remove('open'); render(); } }
 });
-document.addEventListener('input', function (e) { if (e.target.id === 'q') { UI.q = e.target.value; var ll = document.getElementById('lp-list'); if (ll) ll.innerHTML = lpList(); } });
+document.addEventListener('focusin', function (e) {
+  var t = e.target; if (!t.getAttribute || !t.getAttribute('data-combo')) return;
+  t.setAttribute('data-shown', t.value); comboOpen(t);
+});
+document.addEventListener('focusout', function (e) {
+  var t = e.target; if (!t.getAttribute || !t.getAttribute('data-combo')) return;
+  setTimeout(function () { var dd = t.parentNode && t.parentNode.querySelector('.dd'); if (dd && document.activeElement !== t) dd.hidden = true; }, 150);
+});
+document.addEventListener('pointerdown', function (e) { if (e.target.closest && e.target.closest('.dd')) e.preventDefault(); });
+document.addEventListener('input', function (e) {
+  if (e.target.getAttribute && e.target.getAttribute('data-combo')) { e.target.removeAttribute('data-shown'); comboOpen(e.target); return; }
+  if (e.target.id === 'q') { UI.q = e.target.value; var ll = document.getElementById('lp-list'); if (ll) ll.innerHTML = lpList(); } });
 document.addEventListener('change', function (e) {
   if (e.target.id === 'sort') { UI.sort = e.target.value; render(); }
   else if (e.target.id === 'year') { UI.year = +e.target.value; render(); }

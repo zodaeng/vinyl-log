@@ -1,5 +1,5 @@
 /* Vinyl Log: 화면 파일을 기기에 보관해 오프라인에서도 열리게 합니다. 데이터 요청은 건드리지 않습니다. */
-var CACHE = 'vinyl-log-shell-v21';
+var CACHE = 'vinyl-log-shell-v24';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
